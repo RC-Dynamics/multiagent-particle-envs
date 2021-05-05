@@ -92,7 +92,7 @@ class DDPGAgentTrainer(AgentTrainer):
         obs_next = torch.Tensor(obs_next).to(self.args.device).float()
         act = torch.Tensor(act).to(self.args.device).float()
         rew = torch.Tensor(rew).to(self.args.device).float().unsqueeze(1)
-        dones = torch.Tensor(done).to(self.args.device).bool()
+        dones = torch.Tensor(done).to(self.args.device).float()
 
         # train critic
         self.Q_opt.zero_grad()
@@ -120,7 +120,6 @@ class DDPGAgentTrainer(AgentTrainer):
         self.tgt_pi.sync(alpha=1 - 1e-3)
         self.tgt_Q.sync(alpha=1 - 1e-3)
 
-        print(pi_loss_v)
         return [metrics["train/loss_Q"], metrics["train/loss_pi"]]
     # ,\
     #          np.mean(Q_ref_v.cpu().detach().numpy()), np.mean(rew),\
