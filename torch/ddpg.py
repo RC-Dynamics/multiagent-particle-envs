@@ -2,6 +2,7 @@ import torch
 from torch.nn import functional as F
 from torch.optim import Adam
 from network import Actor, Critic, TargetActor, TargetCritic
+from torch.distributions import Normal
 from buffer import ReplayBuffer
 import numpy as np
 import os
@@ -42,24 +43,28 @@ class DDPGAgentTrainer(AgentTrainer):
         self.replay_buffer = ReplayBuffer(1e6)
         self.min_replay_buffer_len = args.batch_size * args.max_episode_len
         self.replay_sample_index = None
-    
+        
     def save(self):
-        torch.save(f'{self.args.save_dir}/{self.name}_actor.pth', self.pi.state_dict())
-        torch.save(f'{self.args.save_dir}/{self.name}_critic.pth', self.Q.state_dict())
-        torch.save(f'{self.args.save_dir}/{self.name}_actor_optim.pth', self.pi_opt.state_dict())
-        torch.save(f'{self.args.save_dir}/{self.name}_critic_optim.pth', self.Q_opt.state_dict())
+        torch.save(self.pi.state_dict(), f'{self.args.save_dir}{self.name}_actor.pth')
+        torch.save(self.Q.state_dict(), f'{self.args.save_dir}{self.name}_critic.pth')
+        torch.save(self.pi_opt.state_dict(), f'{self.args.save_dir}{self.name}_actor_optim.pth')
+        torch.save(self.Q_opt.state_dict(), f'{self.args.save_dir}{self.name}_critic_optim.pth')
 
     def load(self, load_path):
-        self.pi.load_state_dict(torch.load(f'{load_path}/{self.name}_actor.pth'))
-        self.Q.load_state_dict(torch.load(f'{load_path}/{self.name}_critic.pth'))
-        self.pi_opt.load_state_dict(torch.load(f'{load_path}/{self.name}_actor_optim.pth'))
-        self.Q_opt.load_state_dict(torch.load(f'{load_path}/{self.name}_critic_optim.pth'))
+        self.pi.load_state_dict(torch.load(f'{load_path}{self.name}_actor.pth'))
+        self.Q.load_state_dict(torch.load(f'{load_path}{self.name}_critic.pth'))
+        self.pi_opt.load_state_dict(torch.load(f'{load_path}{self.name}_actor_optim.pth'))
+        self.Q_opt.load_state_dict(torch.load(f'{load_path}{self.name}_critic_optim.pth'))
         self.tgt_pi = TargetActor(self.pi)
         self.tgt_Q = TargetCritic(self.Q)
 
-    def action(self, obs):
+    def action(self, obs, train=False):
         obs = torch.Tensor(obs).to(self.args.device)
-        return self.pi(obs).detach().cpu().numpy()
+        act = self.pi(obs)
+        if train:
+            noise = torch.normal(0.,1., size=act.shape).to(self.args.device)
+            act = torch.clamp(act + noise, -1.,1.)
+        return act.detach().cpu().numpy()
 
     def experience(self, obs, act, rew, new_obs, done, terminal):
         # Store transition in the replay buffer.

@@ -79,7 +79,7 @@ def get_trainers(env_n, num_adversaries, act_shape_n, obs_shape_n, arglist):
 
 def train(arglist):
     # Create environment
-    env = make_env('simple')
+    env = make_env(arglist.scenario)
     # Create agent trainers
     act_shape_n = [env.action_space[i].shape[0] for i in range(env.n)]
     obs_shape_n = [env.observation_space[i].shape[0] for i in range(env.n)]
@@ -105,9 +105,10 @@ def train(arglist):
     t_start = time.time()
 
     print('Starting iterations...')
+    train = not arglist.display
     while True:
         # get action
-        action_n = [agent.action(obs) for agent, obs in zip(trainers,obs_n)]
+        action_n = [agent.action(obs, train) for agent, obs in zip(trainers,obs_n)]
         # environment step
         new_obs_n, rew_n, done_n, info_n = env.step(action_n)
         # env.render()
@@ -149,8 +150,8 @@ def train(arglist):
 
         # save model, display training output
         if terminal and (len(episode_rewards) % arglist.save_rate == 0):
-            # for agent in trainers:
-            #     agent.save()
+            for agent in trainers:
+                agent.save()
             # print statement depends on whether or not there are adversaries
             if num_adversaries == 0:
                 print("steps: {}, episodes: {}, mean episode reward: {}, time: {}".format(
