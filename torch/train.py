@@ -4,6 +4,7 @@ import time
 import pickle
 
 from ddpg import DDPGAgentTrainer
+from maddpg import MADDPGAgentTrainer
 
 def make_env(scenario_name, benchmark=False):
     '''
@@ -66,7 +67,7 @@ def parse_args():
 
 def get_trainers(env_n, num_adversaries, act_shape_n, obs_shape_n, arglist):
     trainers = []
-    trainer = DDPGAgentTrainer
+    trainer = MADDPGAgentTrainer
     for i in range(num_adversaries):
         trainers.append(trainer(
             "agent_%d" % i, obs_shape_n, act_shape_n, i, arglist,
