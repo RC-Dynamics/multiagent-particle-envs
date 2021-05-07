@@ -131,4 +131,4 @@ class MADDPGAgentTrainer(DDPGAgentTrainer):
         self.tgt_pi.sync(alpha=1 - 1e-3)
         self.tgt_Q.sync(alpha=1 - 1e-3)
 
-        return [metrics["train/loss_Q"], metrics["train/loss_pi"]]
+        return [metrics["train/loss_Q"], metrics["train/loss_pi"], np.mean(Q_v.cpu().detach().numpy()), np.mean(rew), np.mean(Q_next_v.cpu().detach().numpy()), np.std(Q_v.cpu().detach().numpy()) ]

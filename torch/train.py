@@ -2,6 +2,8 @@ import argparse
 import numpy as np
 import time
 import pickle
+import PIL
+import wandb
 
 from ddpg import DDPGAgentTrainer
 from maddpg import MADDPGAgentTrainer
@@ -79,10 +81,11 @@ def get_trainers(env_n, num_adversaries, act_shape_n, obs_shape_n, arglist):
     return trainers
 
 def train(arglist):
+    wandb.init(project='maddpg', name=arglist.exp_name,  entity='robocin')
     # Create environment
     env = make_env(arglist.scenario)
     # Create agent trainers
-    act_shape_n = [env.action_space[i].shape[0] for i in range(env.n)]
+    act_shape_n = [env.action_space[i].n for i in range(env.n)]
     obs_shape_n = [env.observation_space[i].shape[0] for i in range(env.n)]
     num_adversaries = min(env.n, arglist.num_adversaries)
     trainers = get_trainers(env.n, num_adversaries, act_shape_n, obs_shape_n, arglist)
@@ -105,9 +108,14 @@ def train(arglist):
     train_step = 0
     t_start = time.time()
 
+
+    frames = []
+    gif_index = 0
+    gif = True
     print('Starting iterations...')
-    train = not arglist.display
+    train = False #not arglist.display
     while True:
+        metrics = {}
         # get action
         action_n = [agent.action(obs, train) for agent, obs in zip(trainers,obs_n)]
         # environment step
@@ -126,21 +134,45 @@ def train(arglist):
             agent_rewards[i][-1] += rew
 
         if done or terminal:
+            if gif:
+                frame = env.render(mode='rgb_array')[0]
+                frame = PIL.Image.fromarray(frame)
+                frame = frame.convert('P', palette=PIL.Image.ADAPTIVE)
+                frames.append(frame)
+                gif_path = "{}gif.gif".format(arglist.save_dir)
+                frames[0].save(
+                    fp=gif_path, 
+                    format='GIF', 
+                    append_images=frames[1:], 
+                    save_all=True,
+                    duration=10, 
+                    loop=0
+                )
+                metrics.update({"gif": wandb.Video(gif_path, fps=10, format="gif"),
+                                "gif_index": gif_index})
+                gif_index += 1
+                frames.clear()
+                gif = False
             obs_n = env.reset()
             episode_step = 0
             episode_rewards.append(0)
             for a in agent_rewards:
                 a.append(0)
-            agent_info.append([[]])
+            if len(episode_rewards) % 1000 == 0:
+                gif = True
 
         # increment global step counter
         train_step += 1
 
         # for displaying learned policies
-        if arglist.display:
-            time.sleep(0.1)
-            env.render()
-            continue
+        if arglist.display or gif:
+            # time.sleep(0.1)
+            frame = env.render(mode='rgb_array')[0]
+            frame = PIL.Image.fromarray(frame)
+            frame = frame.convert('P', palette=PIL.Image.ADAPTIVE)
+            frames.append(frame)
+            if arglist.display:
+                continue
 
         # update all trainers, if not in display or benchmark mode
         loss = None
@@ -148,6 +180,15 @@ def train(arglist):
             agent.preupdate()
         for agent in trainers:
             loss = agent.update(trainers, train_step)
+            if loss:
+                metrics.update({
+                    "{}/q_loss".format(agent.name): loss[0],
+                    "{}/p_loss".format(agent.name): loss[1],
+                    "{}/mean(target_q)".format(agent.name): loss[2],
+                    "{}/mean(rew)".format(agent.name): loss[3],
+                    "{}/mean(target_q_next)".format(agent.name): loss[4],
+                    "{}/std(target_q)".format(agent.name): loss[5]
+                })
 
         # save model, display training output
         if terminal and (len(episode_rewards) % arglist.save_rate == 0):
@@ -161,11 +202,21 @@ def train(arglist):
                 print("steps: {}, episodes: {}, mean episode reward: {}, agent episode reward: {}, time: {}".format(
                     train_step, len(episode_rewards), np.mean(episode_rewards[-arglist.save_rate:]),
                     [np.mean(rew[-arglist.save_rate:]) for rew in agent_rewards], round(time.time()-t_start, 3)))
+            metrics.update({
+                "episodes": len(episode_rewards),
+                "mean_ep_rw": np.mean(episode_rewards[-arglist.save_rate:])
+            })
             t_start = time.time()
             # Keep track of final episode reward
             final_ep_rewards.append(np.mean(episode_rewards[-arglist.save_rate:]))
             for rew in agent_rewards:
                 final_ep_ag_rewards.append(np.mean(rew[-arglist.save_rate:]))
+
+        if len(metrics):
+            metrics.update({
+                "train_step": train_step,
+            })
+            wandb.log(metrics)
 
 if __name__ == '__main__':
     arglist = parse_args()
