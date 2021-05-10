@@ -107,7 +107,7 @@ class MADDPGAgentTrainer(DDPGAgentTrainer):
         if self.discrete:
             act = onehot_from_logits(act)
         else:
-            act = F.tanh(act)
+            act = torch.tanh(act)
         return act.detach().cpu().numpy().squeeze()
 
     def experience(self, obs, act, rew, new_obs, done, terminal):
@@ -149,12 +149,12 @@ class MADDPGAgentTrainer(DDPGAgentTrainer):
                 if self.discrete:
                     new_act = gumbel_softmax(new_act, hard=True)
                 else:
-                    new_act = F.tanh(new_act)
+                    new_act = torch.tanh(new_act)
             else:
                 if self.discrete:
                     new_act = onehot_from_logits(new_act)
                 else:
-                    new_act = F.tanh(new_act)
+                    new_act = torch.tanh(new_act)
             new_acts_n.append(new_act)
             tgt_res = agents[i].tgt_pi(obs_next_v)
             tgt_res = onehot_from_logits(tgt_res)
