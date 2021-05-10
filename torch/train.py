@@ -61,7 +61,7 @@ def parse_args():
     # Evaluation
     parser.add_argument("--restore", action="store_true", default=False)
     parser.add_argument("--display", action="store_true", default=False)
-    parser.add_argument("--device", type=str, default="cuda", help="Torch device")
+    parser.add_argument("--device", type=str, default="cpu", help="Torch device")
 
     return parser.parse_args()
 
