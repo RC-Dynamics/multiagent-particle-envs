@@ -57,7 +57,7 @@ def gumbel_softmax(logits, temperature=1.0, hard=False):
 
 
 class MADDPGAgentTrainer(DDPGAgentTrainer):
-    def __init__(self, name, obs_shape_n, act_shape_n, agent_index, args, local_q_func=False, discrete=False):
+    def __init__(self, name, obs_shape_n, act_shape_n, agent_index, args, local_q_func=False, discrete=True):
         self.name = name
         self.n = len(obs_shape_n)
         self.agent_index = agent_index
@@ -91,13 +91,13 @@ class MADDPGAgentTrainer(DDPGAgentTrainer):
 
     def load(self, load_path):
         self.pi.load_state_dict(torch.load(
-            f'{load_path}{self.name}_actor.pth'))
+            f'{load_path}/{self.name}_actor.pth'))
         self.Q.load_state_dict(torch.load(
-            f'{load_path}{self.name}_critic.pth'))
+            f'{load_path}/{self.name}_critic.pth'))
         self.pi_opt.load_state_dict(torch.load(
-            f'{load_path}{self.name}_actor_optim.pth'))
+            f'{load_path}/{self.name}_actor_optim.pth'))
         self.Q_opt.load_state_dict(torch.load(
-            f'{load_path}{self.name}_critic_optim.pth'))
+            f'{load_path}/{self.name}_critic_optim.pth'))
         self.tgt_pi = TargetActor(self.pi)
         self.tgt_Q = TargetCritic(self.Q)
 
