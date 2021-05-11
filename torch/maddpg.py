@@ -81,13 +81,13 @@ class MADDPGAgentTrainer(DDPGAgentTrainer):
 
     def save(self):
         torch.save(self.pi.state_dict(),
-                   f'{self.args.save_dir}{self.name}_actor.pth')
+                   f'{self.args.save_dir}/{self.name}_actor.pth')
         torch.save(self.Q.state_dict(),
-                   f'{self.args.save_dir}{self.name}_critic.pth')
+                   f'{self.args.save_dir}/{self.name}_critic.pth')
         torch.save(self.pi_opt.state_dict(),
-                   f'{self.args.save_dir}{self.name}_actor_optim.pth')
+                   f'{self.args.save_dir}/{self.name}_actor_optim.pth')
         torch.save(self.Q_opt.state_dict(),
-                   f'{self.args.save_dir}{self.name}_critic_optim.pth')
+                   f'{self.args.save_dir}/{self.name}_critic_optim.pth')
 
     def load(self, load_path):
         self.pi.load_state_dict(torch.load(
