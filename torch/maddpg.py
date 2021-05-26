@@ -157,7 +157,10 @@ class MADDPGAgentTrainer(DDPGAgentTrainer):
                     new_act = torch.tanh(new_act)
             new_acts_n.append(new_act)
             tgt_res = agents[i].tgt_pi(obs_next_v)
-            tgt_res = onehot_from_logits(tgt_res)
+            if self.discrete:
+                tgt_res = onehot_from_logits(tgt_res)
+            else:
+                tgt_res = torch.tanh(tgt_res)
             target_act_next_n.append(tgt_res)
         _, _, rew, _, done = self.replay_buffer.sample_index(index)
         rew_v = torch.Tensor(rew).to(self.args.device).float().unsqueeze(1)
