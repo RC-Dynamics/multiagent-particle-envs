@@ -121,7 +121,7 @@ class DDPGAgentTrainer(AgentTrainer):
         obs = torch.Tensor(obs).to(self.args.device).float()
         obs_next = torch.Tensor(obs_next).to(self.args.device).float()
         act = torch.Tensor(act).to(self.args.device).float()
-        rew = torch.Tensor(rew).to(self.args.device).float().unsqueeze(1)
+        rew_v = torch.Tensor(rew).to(self.args.device).float().unsqueeze(1)
         dones = torch.Tensor(done).to(self.args.device).float()
 
         # train critic
@@ -131,7 +131,7 @@ class DDPGAgentTrainer(AgentTrainer):
         Q_next_v = self.tgt_Q(obs_next, A_next_v)  # Bootstrap Q_next
         Q_next_v[dones == 1.] = 0.0  # No bootstrap if transition is terminal
         # Calculate a reference Q value using the bootstrap Q
-        Q_ref_v = rew + Q_next_v * self.args.gamma
+        Q_ref_v = rew_v + Q_next_v * self.args.gamma
         Q_loss_v = F.mse_loss(Q_v, Q_ref_v.detach())
         Q_loss_v.backward()
         self.Q_opt.step()
