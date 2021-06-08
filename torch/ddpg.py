@@ -91,10 +91,11 @@ class DDPGAgentTrainer(AgentTrainer):
         act = self.pi(obs)
         if self.discrete:
             act = onehot_from_logits(act)
-        elif train:
+        else:
             act = torch.tanh(act)
-            noise = torch.normal(0., 1., size=act.shape).to(self.args.device)
-            act = torch.clamp(act + noise, -1., 1.)
+            if train:
+                noise = torch.normal(0., 1., size=act.shape).to(self.args.device)
+                act = torch.clamp(act + noise, -1., 1.)
         return act.detach().cpu().numpy()
 
     def experience(self, obs, act, rew, new_obs, done, terminal):

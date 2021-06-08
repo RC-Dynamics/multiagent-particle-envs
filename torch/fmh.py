@@ -138,7 +138,7 @@ def train(arglist):
     gif_index = 0
     gif = True
     print('Starting iterations...')
-    train = False  # not arglist.display
+    train = True  # not arglist.display
     while True:
         metrics = {}
         # get action
