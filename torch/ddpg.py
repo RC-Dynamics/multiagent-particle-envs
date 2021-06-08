@@ -1,11 +1,15 @@
+import os
+
+import numpy as np
+
 import torch
-from torch.nn import functional as F
-from torch.optim import Adam
+from buffer import ReplayBuffer
 from network import Actor, Critic, TargetActor, TargetCritic
 from torch.distributions import Normal
-from buffer import ReplayBuffer
-import numpy as np
-import os
+from torch.nn import functional as F
+from torch.optim import Adam
+from utils import gumbel_softmax, onehot_from_logits
+
 
 class AgentTrainer(object):
     def __init__(self, name, obs_shape, act_space, args):
@@ -23,16 +27,21 @@ class AgentTrainer(object):
     def update(self, agents):
         raise NotImplemented()
 
+
 class DDPGAgentTrainer(AgentTrainer):
-    def __init__(self, name, obs_shape_n, act_shape_n, agent_index, args, local_q_func=False):
+    def __init__(self, name, obs_shape_n,
+                 act_shape_n, agent_index, args, discrete=False):
         self.name = name
         self.n = len(obs_shape_n)
         self.agent_index = agent_index
         self.args = args
-        
+        self.discrete = discrete
+
         # Train stuff
-        self.pi = Actor(obs_shape_n[self.agent_index], act_shape_n[self.agent_index]).to(args.device)
-        self.Q = Critic(obs_shape_n[self.agent_index], act_shape_n[self.agent_index]).to(args.device)    
+        self.pi = Actor(obs_shape_n[self.agent_index],
+                        act_shape_n[self.agent_index]).to(args.device)
+        self.Q = Critic(obs_shape_n[self.agent_index],
+                        act_shape_n[self.agent_index]).to(args.device)
         self.tgt_pi = TargetActor(self.pi)
         self.tgt_Q = TargetCritic(self.Q)
         self.pi_opt = Adam(self.pi.parameters(), lr=args.lr)
@@ -43,27 +52,42 @@ class DDPGAgentTrainer(AgentTrainer):
         self.replay_buffer = ReplayBuffer(1e6)
         self.min_replay_buffer_len = args.batch_size * args.max_episode_len
         self.replay_sample_index = None
-        
+
     def save(self):
-        torch.save(self.pi.state_dict(), f'{self.args.save_dir}{self.name}_actor.pth')
-        torch.save(self.Q.state_dict(), f'{self.args.save_dir}{self.name}_critic.pth')
-        torch.save(self.pi_opt.state_dict(), f'{self.args.save_dir}{self.name}_actor_optim.pth')
-        torch.save(self.Q_opt.state_dict(), f'{self.args.save_dir}{self.name}_critic_optim.pth')
+        torch.save(self.pi.state_dict(),
+                   f'{self.args.save_dir}{self.name}_actor.pth')
+        torch.save(self.Q.state_dict(),
+                   f'{self.args.save_dir}{self.name}_critic.pth')
+        torch.save(self.pi_opt.state_dict(),
+                   f'{self.args.save_dir}{self.name}_actor_optim.pth')
+        torch.save(self.Q_opt.state_dict(),
+                   f'{self.args.save_dir}{self.name}_critic_optim.pth')
 
     def load(self, load_path):
-        self.pi.load_state_dict(torch.load(f'{load_path}{self.name}_actor.pth'))
-        self.Q.load_state_dict(torch.load(f'{load_path}{self.name}_critic.pth'))
-        self.pi_opt.load_state_dict(torch.load(f'{load_path}{self.name}_actor_optim.pth'))
-        self.Q_opt.load_state_dict(torch.load(f'{load_path}{self.name}_critic_optim.pth'))
+        self.pi.load_state_dict(
+            torch.load(f'{load_path}{self.name}_actor.pth')
+        )
+        self.Q.load_state_dict(
+            torch.load(f'{load_path}{self.name}_critic.pth')
+        )
+        self.pi_opt.load_state_dict(
+            torch.load(f'{load_path}{self.name}_actor_optim.pth')
+        )
+        self.Q_opt.load_state_dict(
+            torch.load(f'{load_path}{self.name}_critic_optim.pth')
+        )
         self.tgt_pi = TargetActor(self.pi)
         self.tgt_Q = TargetCritic(self.Q)
 
     def action(self, obs, train=False):
         obs = torch.Tensor(obs).to(self.args.device)
         act = self.pi(obs)
-        if train:
-            noise = torch.normal(0.,1., size=act.shape).to(self.args.device)
-            act = torch.clamp(act + noise, -1.,1.)
+        if self.discrete:
+            act = onehot_from_logits(act)
+        elif train:
+            act = torch.tanh(act)
+            noise = torch.normal(0., 1., size=act.shape).to(self.args.device)
+            act = torch.clamp(act + noise, -1., 1.)
         return act.detach().cpu().numpy()
 
     def experience(self, obs, act, rew, new_obs, done, terminal):
@@ -75,23 +99,15 @@ class DDPGAgentTrainer(AgentTrainer):
 
     def update(self, agents, t):
         metrics = {}
-        
-        if len(self.replay_buffer) < self.min_replay_buffer_len: # replay buffer is not large enough
+        # replay buffer is not large enough
+        if len(self.replay_buffer) < self.min_replay_buffer_len:
             return
         if not t % 100 == 0:  # only update every 100 steps
             return
 
-        self.replay_sample_index = self.replay_buffer.make_index(self.args.batch_size)
-        # collect replay sample from all agents
-        obs_n = []
-        obs_next_n = []
-        act_n = []
+        self.replay_sample_index = self.replay_buffer.make_index(
+            self.args.batch_size)
         index = self.replay_sample_index
-        # for i in range(self.n):
-        #     obs, act, rew, obs_next, done = agents[i].replay_buffer.sample_index(index)
-        #     obs_n.append(obs)
-        #     obs_next_n.append(obs_next)
-        #     act_n.append(act)
         obs, act, rew, obs_next, done = self.replay_buffer.sample_index(index)
         obs = torch.Tensor(obs).to(self.args.device).float()
         obs_next = torch.Tensor(obs_next).to(self.args.device).float()
@@ -115,6 +131,10 @@ class DDPGAgentTrainer(AgentTrainer):
         # train actor - Maximize Q value received over every S
         self.pi_opt.zero_grad()
         A_cur_v = self.pi(obs)
+        if self.discrete:
+            A_cur_v = gumbel_softmax(A_cur_v, hard=True)
+        else:
+            A_cur_v = torch.tanh(A_cur_v)
         pi_loss_v = -self.Q(obs, A_cur_v)
         pi_loss_v = pi_loss_v.mean()
         pi_loss_v.backward()
@@ -126,9 +146,3 @@ class DDPGAgentTrainer(AgentTrainer):
         self.tgt_Q.sync(alpha=1 - 1e-3)
 
         return [metrics["train/loss_Q"], metrics["train/loss_pi"]]
-    # ,\
-    #          np.mean(Q_ref_v.cpu().detach().numpy()), np.mean(rew),\
-    #               np.mean(Q_next_v.cpu().detach().numpy()),\
-    #                    np.std(Q_ref_v.cpu().detach().numpy())]
-
-
