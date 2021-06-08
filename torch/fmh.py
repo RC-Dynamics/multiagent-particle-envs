@@ -56,13 +56,13 @@ def parse_args():
     parser.add_argument("--num-episodes", type=int,
                         default=60000, help="number of episodes")
     # Core training parameters
-    parser.add_argument("--lr", type=float, default=1e-2,
+    parser.add_argument("--lr", type=float, default=1e-3,
                         help="learning rate for Adam optimizer")
     parser.add_argument("--gamma", type=float,
-                        default=0.95, help="discount factor")
+                        default=0.75, help="discount factor")
     parser.add_argument("--batch-size", type=int, default=1024,
                         help="number of episodes to optimize at the same time")
-    parser.add_argument("--num-units", type=int, default=64,
+    parser.add_argument("--num-units", type=int, default=256,
                         help="number of units in the mlp")
     parser.add_argument("--num-adversaries", type=int,
                         default=0, help="number of adversaries")
@@ -172,7 +172,9 @@ def train(arglist):
             w_obs = np.concatenate((pos, objective))
             new_workers_obs.append(w_obs)
         # collect experience
-        man_rew = np.mean(rew_n)
+        man_rew = np.sum(rew_n)
+        for i, rew in enumerate(rew_n):
+            episode_rewards[-1] += rew
         trainers[0].experience(manager_obs, man_action, man_rew,
                                new_manager_obs, done, terminal)
         for i, agent in enumerate(trainers[1:]):
@@ -184,7 +186,6 @@ def train(arglist):
                              rew, new_workers_obs[i], done, terminal)
         obs_n = new_obs_n
 
-        episode_rewards[-1] += man_rew
         for i, rew in enumerate(rew_n):
             agent_rewards[i][-1] += rew
 

@@ -56,7 +56,7 @@ class DDPGAgentTrainer(AgentTrainer):
         self.grad_clipping = 0.5
 
         # Create experience buffer
-        self.replay_buffer = ReplayBuffer(1e6)
+        self.replay_buffer = ReplayBuffer(1e7)
         self.min_replay_buffer_len = args.batch_size * args.max_episode_len
         self.replay_sample_index = None
 
