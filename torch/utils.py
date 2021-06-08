@@ -3,7 +3,6 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from torch.autograd import Variable
-from utils import gumbel_softmax, onehot_from_logits
 
 
 def onehot_from_logits(logits):

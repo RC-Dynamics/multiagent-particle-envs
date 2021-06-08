@@ -32,12 +32,19 @@ class DDPGAgentTrainer(AgentTrainer):
     def __init__(self, name, obs_shape_n,
                  act_shape_n, agent_index, args, discrete=False):
         self.name = name
-        self.n = len(obs_shape_n)
         self.agent_index = agent_index
         self.args = args
         self.discrete = discrete
 
         # Train stuff
+        if isinstance(obs_shape_n, int):
+            temp = [0 for _ in range(self.agent_index + 1)]
+            temp[self.agent_index] = obs_shape_n
+            obs_shape_n = temp
+        if isinstance(act_shape_n, int):
+            temp = [0 for _ in range(self.agent_index + 1)]
+            temp[self.agent_index] = act_shape_n
+            act_shape_n = temp
         self.pi = Actor(obs_shape_n[self.agent_index],
                         act_shape_n[self.agent_index]).to(args.device)
         self.Q = Critic(obs_shape_n[self.agent_index],
