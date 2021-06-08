@@ -62,26 +62,26 @@ class DDPGAgentTrainer(AgentTrainer):
 
     def save(self):
         torch.save(self.pi.state_dict(),
-                   f'{self.args.save_dir}{self.name}_actor.pth')
+                   f'{self.args.save_dir}/{self.name}_actor.pth')
         torch.save(self.Q.state_dict(),
-                   f'{self.args.save_dir}{self.name}_critic.pth')
+                   f'{self.args.save_dir}/{self.name}_critic.pth')
         torch.save(self.pi_opt.state_dict(),
-                   f'{self.args.save_dir}{self.name}_actor_optim.pth')
+                   f'{self.args.save_dir}/{self.name}_actor_optim.pth')
         torch.save(self.Q_opt.state_dict(),
-                   f'{self.args.save_dir}{self.name}_critic_optim.pth')
+                   f'{self.args.save_dir}/{self.name}_critic_optim.pth')
 
     def load(self, load_path):
         self.pi.load_state_dict(
-            torch.load(f'{load_path}{self.name}_actor.pth')
+            torch.load(f'{load_path}/{self.name}_actor.pth')
         )
         self.Q.load_state_dict(
-            torch.load(f'{load_path}{self.name}_critic.pth')
+            torch.load(f'{load_path}/{self.name}_critic.pth')
         )
         self.pi_opt.load_state_dict(
-            torch.load(f'{load_path}{self.name}_actor_optim.pth')
+            torch.load(f'{load_path}/{self.name}_actor_optim.pth')
         )
         self.Q_opt.load_state_dict(
-            torch.load(f'{load_path}{self.name}_critic_optim.pth')
+            torch.load(f'{load_path}/{self.name}_critic_optim.pth')
         )
         self.tgt_pi = TargetActor(self.pi)
         self.tgt_Q = TargetCritic(self.Q)

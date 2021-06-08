@@ -132,6 +132,7 @@ def train(arglist):
     obs_n = env.reset()
     episode_step = 0
     train_step = 0
+    man_act_idx = 0
     t_start = time.time()
 
     frames = []
@@ -142,9 +143,11 @@ def train(arglist):
     while True:
         metrics = {}
         # get action
-        manager_obs = np.asarray(obs_n).reshape(-1)
-        man_action = trainers[0].action(manager_obs)
-        objectives = man_action.reshape((-1, 2))
+        if man_act_idx%8 ==0:
+            manager_obs = np.asarray(obs_n).reshape(-1)
+            man_action = trainers[0].action(manager_obs)
+            objectives = man_action.reshape((-1, 2))
+
         workers_obs = list()
         for i, obs in enumerate(obs_n):
             pos = obs[2:4]
@@ -160,12 +163,10 @@ def train(arglist):
         done = all(done_n)
         terminal = (episode_step >= arglist.max_episode_len)
         new_manager_obs = np.asarray(new_obs_n).reshape(-1)
-        new_objectives = trainers[0].action(new_manager_obs)
-        new_objectives = new_objectives.reshape((-1, 2))
         new_workers_obs = list()
         for i, obs in enumerate(obs_n):
             pos = obs[2:4]
-            objective = new_objectives[i]
+            objective = objectives[i]
             w_obs = np.concatenate((pos, objective))
             new_workers_obs.append(w_obs)
         # collect experience
@@ -191,7 +192,7 @@ def train(arglist):
                 frame = PIL.Image.fromarray(frame)
                 frame = frame.convert('P', palette=PIL.Image.ADAPTIVE)
                 frames.append(frame)
-                gif_path = "{}gif.gif".format(arglist.save_dir)
+                gif_path = "{}/gif.gif".format(arglist.save_dir)
                 frames[0].save(
                     fp=gif_path,
                     format='GIF',
