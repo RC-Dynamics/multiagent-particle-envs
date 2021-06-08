@@ -109,7 +109,9 @@ def get_trainers(env, arglist):
 
 
 def train(arglist):
-    wandb.init(project='fmh', name=arglist.exp_name,  entity='robocin')
+    wandb.init(project='multi_particle',
+               name='FMH_' + arglist.exp_name,
+               entity='robocin')
     # Create environment
     env = make_env(arglist.scenario)
     # Create agent trainers
@@ -143,7 +145,7 @@ def train(arglist):
     while True:
         metrics = {}
         # get action
-        if man_act_idx%8 ==0:
+        if man_act_idx % 8 == 0:
             manager_obs = np.asarray(obs_n).reshape(-1)
             man_action = trainers[0].action(manager_obs)
             objectives = man_action.reshape((-1, 2))
@@ -237,6 +239,10 @@ def train(arglist):
                 metrics.update({
                     "{}/q_loss".format(agent.name): loss[0],
                     "{}/p_loss".format(agent.name): loss[1],
+                    "{}/mean(target_q)".format(agent.name): loss[2],
+                    "{}/mean(rew)".format(agent.name): loss[3],
+                    "{}/mean(target_q_next)".format(agent.name): loss[4],
+                    "{}/std(target_q)".format(agent.name): loss[5]
                 })
 
         # save model, display training output
@@ -245,8 +251,8 @@ def train(arglist):
                 agent.save()
             # print statement depends on whether or not there are adversaries
             if num_adversaries == 0:
-                print("steps: {}, episodes: {}, mean episode reward: {}, time: {}".format(
-                    train_step, len(episode_rewards), np.mean(episode_rewards[-arglist.save_rate:]), round(time.time()-t_start, 3)))
+                print("steps: {}, episodes: {}, mean episode reward: {}, agent episode reward: {}, time: {}".format(
+                    train_step, len(episode_rewards), np.mean(episode_rewards[-arglist.save_rate:]), [np.mean(rew[-arglist.save_rate:]) for rew in agent_rewards], round(time.time()-t_start, 3)))
             else:
                 print("steps: {}, episodes: {}, mean episode reward: {}, agent episode reward: {}, time: {}".format(
                     train_step, len(episode_rewards), np.mean(

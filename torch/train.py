@@ -81,11 +81,11 @@ def get_trainers(env_n, num_adversaries, act_shape_n, obs_shape_n, arglist):
     return trainers
 
 def train(arglist):
-    wandb.init(project='maddpg', name=arglist.exp_name,  entity='robocin')
+    wandb.init(project='multi_particle', name=arglist.exp_name,  entity='robocin')
     # Create environment
     env = make_env(arglist.scenario)
     # Create agent trainers
-    act_shape_n = [env.action_space[i].n for i in range(env.n)]
+    act_shape_n = [env.action_space[i].shape[0] for i in range(env.n)]
     obs_shape_n = [env.observation_space[i].shape[0] for i in range(env.n)]
     num_adversaries = min(env.n, arglist.num_adversaries)
     trainers = get_trainers(env.n, num_adversaries, act_shape_n, obs_shape_n, arglist)
