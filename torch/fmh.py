@@ -141,7 +141,7 @@ def train(arglist):
     gif_index = 0
     gif = True
     print('Starting iterations...')
-    train = True  # not arglist.display
+    train = not arglist.display
     while True:
         metrics = {}
         # get action
@@ -166,11 +166,12 @@ def train(arglist):
         terminal = (episode_step >= arglist.max_episode_len)
         new_manager_obs = np.asarray(new_obs_n).reshape(-1)
         new_workers_obs = list()
-        for i, obs in enumerate(obs_n):
-            pos = obs[2:4]
+        for i, n_obs in enumerate(new_obs_n):
+            pos = n_obs[2:4]
             objective = objectives[i]
             w_obs = np.concatenate((pos, objective))
             new_workers_obs.append(w_obs)
+
         # collect experience
         man_rew = np.sum(rew_n)
         for i, rew in enumerate(rew_n):
@@ -178,9 +179,9 @@ def train(arglist):
         trainers[0].experience(manager_obs, man_action, man_rew,
                                new_manager_obs, done, terminal)
         for i, agent in enumerate(trainers[1:]):
-            pos = obs[2:4]
+            n_pos = new_obs_n[i][2:4]
             objective = objectives[i]
-            rew = -np.linalg.norm(pos - objective)
+            rew = -np.linalg.norm(n_pos - objective)
             rew_n[i] = rew
             agent.experience(workers_obs[i], action_n[i],
                              rew, new_workers_obs[i], done, terminal)
